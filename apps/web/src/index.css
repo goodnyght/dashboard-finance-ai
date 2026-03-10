@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #2a6df4;
+  --color-background-light: #f5f6f8;
+  --color-background-dark: #101622;
+  --font-display: "Inter", sans-serif;
+  --radius-DEFAULT: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+.glass-card {
+  background: rgba(16, 22, 34, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item-active {
+  background: rgba(42, 109, 244, 0.15);
+  color: #2a6df4;
+  border-right: 3px solid #2a6df4;
+}
