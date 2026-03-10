@@ -5,6 +5,6 @@ import { auth } from "../auth/index.js";
 const router = Router();
 
 // Delegate all /api/auth/* routes to better-auth
-router.all("/*splat", toNodeHandler(auth));
+router.use(toNodeHandler(auth));
 
 export default router;
