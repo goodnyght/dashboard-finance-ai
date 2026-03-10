@@ -1,4 +1,4 @@
-# Dashboard Finance Monorepo Testing
+# Dashboard Finance Monorepo
 
 A modern corporate finance dashboard built with React, Express, and PostgreSQL.
 
