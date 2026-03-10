@@ -65,7 +65,7 @@ router.get("/summary", async (req, res) => {
 router.get("/:id", validate(getTransactionSchema), async (req, res) => {
   const user = (req as any).user;
   const tx = await transactionsService.getById(
-    req.params.id,
+    req.params.id as string,
     user.organizationId
   );
 
@@ -116,7 +116,7 @@ router.put(
   async (req, res) => {
     const user = (req as any).user;
     const tx = await transactionsService.update(
-      req.params.id,
+      req.params.id as string,
       user.organizationId,
       req.body
     );
@@ -143,7 +143,7 @@ router.put(
 router.delete("/:id", requireRole("admin"), validate(getTransactionSchema), async (req, res) => {
   const user = (req as any).user;
   const tx = await transactionsService.delete(
-    req.params.id,
+    req.params.id as string,
     user.organizationId
   );
 
@@ -174,7 +174,7 @@ router.patch(
     const { status } = req.body;
 
     const tx = await transactionsService.updateStatus(
-      req.params.id,
+      req.params.id as string,
       user.organizationId,
       status,
       user.id
@@ -197,7 +197,5 @@ router.patch(
     res.json(tx);
   }
 );
-
-export default router;
 
 export default router;
