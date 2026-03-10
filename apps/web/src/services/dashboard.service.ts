@@ -2,13 +2,13 @@ import apiClient from "../lib/api-client";
 import type { Transaction } from "./transactions.service";
 
 export interface DashboardSummary {
-  totalIncome: number;
-  totalExpenses: number;
+  income: number;
+  expense: number;
   netProfit: number;
   profitMargin: number;
-  incomeChange: number;
-  expenseChange: number;
-  profitChange: number;
+  incomeChange?: number;
+  expenseChange?: number;
+  profitChange?: number;
 }
 
 export interface CashFlowData {

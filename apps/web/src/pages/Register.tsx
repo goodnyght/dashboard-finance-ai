@@ -1,38 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signUp } from '../lib/auth';
+import { useAuth } from '../hooks/useAuth';
 
 const Register: React.FC = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [localError, setLocalError] = useState('');
 
     const navigate = useNavigate();
+    const { session, register, isRegistering, registerError } = useAuth();
+
+    useEffect(() => {
+        if (session) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [session, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setLoading(true);
+        setLocalError('');
 
-        try {
-            const { error } = await signUp.email({
-                email,
-                password,
-                name,
-            });
-
-            if (error) {
-                setError(error.message || 'Failed to create account');
-            } else {
-                navigate('/dashboard', { replace: true });
+        register({
+            email,
+            password,
+            name,
+        }, {
+            onError: (err: any) => {
+                setLocalError(err.message || 'Failed to create account');
             }
-        } catch (err: any) {
-            setError('An unexpected error occurred. Please try again.');
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     return (
@@ -48,10 +45,10 @@ const Register: React.FC = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && (
+                        {(localError || registerError) && (
                             <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2 animate-shake">
                                 <span className="material-symbols-outlined text-lg">error</span>
-                                {error}
+                                {localError || (registerError as any)?.message || 'An error occurred'}
                             </div>
                         )}
 
@@ -118,10 +115,10 @@ const Register: React.FC = () => {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={isRegistering}
                             className="w-full mt-2 py-3 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
                         >
-                            {loading ? (
+                            {isRegistering ? (
                                 <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
                                 'Create Account'

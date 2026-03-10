@@ -1,38 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { signIn } from '../lib/auth';
+import { useAuth } from '../hooks/useAuth';
 
 const Login: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [localError, setLocalError] = useState('');
 
     const navigate = useNavigate();
     const location = useLocation();
+    const { login, session, isLoggingIn, loginError } = useAuth();
+
     const from = (location.state as any)?.from?.pathname || '/dashboard';
+
+    useEffect(() => {
+        if (session) {
+            navigate(from, { replace: true });
+        }
+    }, [session, navigate, from]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setLoading(true);
+        setLocalError('');
 
-        try {
-            const { error } = await signIn.email({
-                email,
-                password,
-            });
-
-            if (error) {
-                setError(error.message || 'Invalid email or password');
-            } else {
-                navigate(from, { replace: true });
+        login({
+            email,
+            password,
+            callbackURL: from,
+        }, {
+            onError: (err: any) => {
+                setLocalError(err.message || 'Invalid email or password');
             }
-        } catch (err: any) {
-            setError('An unexpected error occurred. Please try again.');
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     return (
@@ -48,10 +47,10 @@ const Login: React.FC = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        {error && (
+                        {(localError || loginError) && (
                             <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2 animate-shake">
                                 <span className="material-symbols-outlined text-lg">error</span>
-                                {error}
+                                {localError || (loginError as any)?.message || 'An error occurred'}
                             </div>
                         )}
 
@@ -102,10 +101,10 @@ const Login: React.FC = () => {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={isLoggingIn}
                             className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
                         >
-                            {loading ? (
+                            {isLoggingIn ? (
                                 <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
                                 'Sign In'

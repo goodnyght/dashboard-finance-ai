@@ -36,7 +36,7 @@ const DashboardOverview: React.FC = () => {
         />
         <StatCard
           title="Income"
-          value={formatIDR(summary?.totalIncome || 0)}
+          value={formatIDR(summary?.income || 0)}
           icon="arrow_downward"
           iconBgClass="bg-emerald-500/20"
           iconTextClass="text-emerald-500"
@@ -46,7 +46,7 @@ const DashboardOverview: React.FC = () => {
         />
         <StatCard
           title="Expense"
-          value={formatIDR(summary?.totalExpenses || 0)}
+          value={formatIDR(summary?.expense || 0)}
           icon="arrow_upward"
           iconBgClass="bg-rose-500/20"
           iconTextClass="text-rose-500"
@@ -103,8 +103,8 @@ const DashboardOverview: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${tx.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
-                        tx.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
-                          'bg-rose-500/10 text-rose-500'
+                      tx.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
+                        'bg-rose-500/10 text-rose-500'
                       }`}>
                       {tx.status === 'approved' && <span className="size-1.5 rounded-full bg-emerald-500"></span>}
                       {tx.status === 'pending' && <span className="size-1.5 rounded-full bg-amber-500"></span>}

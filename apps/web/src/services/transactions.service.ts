@@ -19,7 +19,7 @@ export interface Transaction {
 
 export interface TransactionListResponse {
   data: Transaction[];
-  meta: {
+  pagination: {
     total: number;
     page: number;
     limit: number;
