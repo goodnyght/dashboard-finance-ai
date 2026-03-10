@@ -164,4 +164,71 @@ export const budgetsService = {
       return result[0];
     }
   },
+
+  async checkBudgetAlerts(
+    organizationId: string,
+    departmentId: string,
+    date: string
+  ) {
+    const period = date.substring(0, 7); // YYYY-MM format
+
+    // Get budget for this department and period
+    const [b] = await db
+      .select()
+      .from(budget)
+      .where(
+        and(
+          eq(budget.organizationId, organizationId),
+          eq(budget.departmentId, departmentId),
+          eq(budget.period, period)
+        )
+      )
+      .limit(1);
+
+    if (!b) return null;
+
+    // Get total actual expenses
+    const [actual] = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${transaction.amount}), 0)`,
+      })
+      .from(transaction)
+      .where(
+        and(
+          eq(transaction.organizationId, organizationId),
+          eq(transaction.departmentId, departmentId),
+          eq(transaction.type, "expense"),
+          eq(transaction.status, "approved"),
+          sql`TO_CHAR(${transaction.date}::date, 'YYYY-MM') = ${period}`
+        )
+      );
+
+    const actualAmount = Number(actual.total);
+    const budgetAmount = Number(b.budgetAmount);
+    const usagePct = (actualAmount / budgetAmount) * 100;
+
+    const thresholds = await this.getThresholds(organizationId);
+
+    if (usagePct >= thresholds.criticalPct) {
+      return {
+        level: "critical",
+        usagePct,
+        budgetAmount,
+        actualAmount,
+        departmentId,
+        period,
+      };
+    } else if (usagePct >= thresholds.warningPct) {
+      return {
+        level: "warning",
+        usagePct,
+        budgetAmount,
+        actualAmount,
+        departmentId,
+        period,
+      };
+    }
+
+    return null;
+  },
 };

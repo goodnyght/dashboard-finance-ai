@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import apiRoutes from "./routes/index.js";
 
+import { errorHandler } from "./middleware/error.js";
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -17,6 +19,9 @@ app.use(express.json());
 
 // ── API Routes ──
 app.use("/api", apiRoutes);
+
+// ── Error Handling ──
+app.use(errorHandler);
 
 // ── Health Check ──
 app.get("/health", (_req, res) => {

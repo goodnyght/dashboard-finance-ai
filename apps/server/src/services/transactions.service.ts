@@ -1,6 +1,7 @@
 import { db } from "../db/index.js";
 import { transaction, category, department } from "../db/schema.js";
 import { eq, and, sql, desc, ilike, gte, lte, count } from "drizzle-orm";
+import { budgetsService } from "./budgets.service.js";
 
 interface ListTransactionsParams {
   organizationId: string;
@@ -108,7 +109,23 @@ export const transactionsService = {
       })
       .returning();
 
-    return result[0];
+    const tx = result[0];
+
+    // Trigger budget check if it's an expense and has a department
+    if (tx.type === "expense" && tx.departmentId) {
+      const alert = await budgetsService.checkBudgetAlerts(
+        tx.organizationId,
+        tx.departmentId,
+        tx.date
+      );
+      if (alert) {
+        console.log(
+          `[Budget Alert] ${alert.level.toUpperCase()}: Department ${tx.departmentId} is at ${alert.usagePct.toFixed(2)}% of budget for ${alert.period}`
+        );
+      }
+    }
+
+    return tx;
   },
 
   async update(
@@ -136,7 +153,16 @@ export const transactionsService = {
       )
       .returning();
 
-    return result[0] || null;
+    const tx = result[0];
+    if (tx && tx.type === "expense" && tx.departmentId) {
+      await budgetsService.checkBudgetAlerts(
+        tx.organizationId,
+        tx.departmentId,
+        tx.date
+      );
+    }
+
+    return tx || null;
   },
 
   async delete(id: string, organizationId: string) {
@@ -170,7 +196,21 @@ export const transactionsService = {
       )
       .returning();
 
-    return result[0] || null;
+    const tx = result[0];
+    if (
+      tx &&
+      tx.status === "approved" &&
+      tx.type === "expense" &&
+      tx.departmentId
+    ) {
+      await budgetsService.checkBudgetAlerts(
+        tx.organizationId,
+        tx.departmentId,
+        tx.date
+      );
+    }
+
+    return tx || null;
   },
 
   async getSummary(organizationId: string, dateFrom?: string, dateTo?: string) {

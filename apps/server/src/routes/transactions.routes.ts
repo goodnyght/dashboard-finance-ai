@@ -1,91 +1,88 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
+import { validate } from "../middleware/validation.js";
 import { transactionsService } from "../services/transactions.service.js";
 import { auditLogsService } from "../services/audit-logs.service.js";
+import {
+  listTransactionsSchema,
+  getTransactionSchema,
+  createTransactionSchema,
+  updateTransactionSchema,
+  updateTransactionStatusSchema,
+} from "./transactions.schema.js";
 
 const router = Router();
 
 router.use(requireAuth);
 
 // GET /api/transactions
-router.get("/", async (req, res) => {
-  try {
-    const user = (req as any).user;
-    const {
-      page,
-      limit,
-      dateFrom,
-      dateTo,
-      category,
-      type,
-      status,
-      search,
-    } = req.query as Record<string, string | undefined>;
+router.get("/", validate(listTransactionsSchema), async (req, res) => {
+  const user = (req as any).user;
+  const {
+    page,
+    limit,
+    dateFrom,
+    dateTo,
+    category,
+    type,
+    status,
+    search,
+  } = req.query as any;
 
-    const result = await transactionsService.list({
-      organizationId: user.organizationId,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-      dateFrom,
-      dateTo,
-      categoryId: category,
-      type: type as "income" | "expense" | undefined,
-      status: status as "pending" | "approved" | "rejected" | undefined,
-      search,
-    });
+  const result = await transactionsService.list({
+    organizationId: user.organizationId,
+    page: page || 1,
+    limit: limit || 10,
+    dateFrom,
+    dateTo,
+    categoryId: category,
+    type,
+    status,
+    search,
+  });
 
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch transactions" });
-  }
+  res.json(result);
 });
 
 // GET /api/transactions/summary
 router.get("/summary", async (req, res) => {
-  try {
-    const user = (req as any).user;
-    const { dateFrom, dateTo } = req.query as {
-      dateFrom?: string;
-      dateTo?: string;
-    };
+  const user = (req as any).user;
+  const { dateFrom, dateTo } = req.query as {
+    dateFrom?: string;
+    dateTo?: string;
+  };
 
-    const summary = await transactionsService.getSummary(
-      user.organizationId,
-      dateFrom,
-      dateTo
-    );
-    res.json(summary);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch transaction summary" });
-  }
+  const summary = await transactionsService.getSummary(
+    user.organizationId,
+    dateFrom,
+    dateTo
+  );
+  res.json(summary);
 });
 
 // GET /api/transactions/:id
-router.get("/:id", async (req, res) => {
-  try {
-    const user = (req as any).user;
-    const tx = await transactionsService.getById(
-      req.params.id as string,
-      user.organizationId
-    );
+router.get("/:id", validate(getTransactionSchema), async (req, res) => {
+  const user = (req as any).user;
+  const tx = await transactionsService.getById(
+    req.params.id,
+    user.organizationId
+  );
 
-    if (!tx) {
-      res.status(404).json({ error: "Transaction not found" });
-      return;
-    }
-
-    res.json(tx);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch transaction" });
+  if (!tx) {
+    res.status(404).json({ error: "Transaction not found" });
+    return;
   }
+
+  res.json(tx);
 });
 
 // POST /api/transactions
-router.post("/", requireRole("admin", "staff"), async (req, res) => {
-  try {
+router.post(
+  "/",
+  requireRole("admin", "staff"),
+  validate(createTransactionSchema),
+  async (req, res) => {
     const user = (req as any).user;
     const displayId = await transactionsService.generateDisplayId(
       user.organizationId
@@ -108,17 +105,18 @@ router.post("/", requireRole("admin", "staff"), async (req, res) => {
     });
 
     res.status(201).json(tx);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create transaction" });
   }
-});
+);
 
 // PUT /api/transactions/:id
-router.put("/:id", requireRole("admin", "staff"), async (req, res) => {
-  try {
+router.put(
+  "/:id",
+  requireRole("admin", "staff"),
+  validate(updateTransactionSchema),
+  async (req, res) => {
     const user = (req as any).user;
     const tx = await transactionsService.update(
-      req.params.id as string,
+      req.params.id,
       user.organizationId,
       req.body
     );
@@ -138,18 +136,48 @@ router.put("/:id", requireRole("admin", "staff"), async (req, res) => {
     });
 
     res.json(tx);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update transaction" });
   }
-});
+);
 
 // DELETE /api/transactions/:id
-router.delete("/:id", requireRole("admin"), async (req, res) => {
-  try {
+router.delete("/:id", requireRole("admin"), validate(getTransactionSchema), async (req, res) => {
+  const user = (req as any).user;
+  const tx = await transactionsService.delete(
+    req.params.id,
+    user.organizationId
+  );
+
+  if (!tx) {
+    res.status(404).json({ error: "Transaction not found" });
+    return;
+  }
+
+  await auditLogsService.create({
+    userId: user.id,
+    action: "deleted",
+    entityType: "transaction",
+    entityId: tx.id,
+    details: `Deleted transaction ${tx.displayId}`,
+    organizationId: user.organizationId,
+  });
+
+  res.json({ message: "Transaction deleted" });
+});
+
+// PATCH /api/transactions/:id/status
+router.patch(
+  "/:id/status",
+  requireRole("admin"),
+  validate(updateTransactionStatusSchema),
+  async (req, res) => {
     const user = (req as any).user;
-    const tx = await transactionsService.delete(
-      req.params.id as string,
-      user.organizationId
+    const { status } = req.body;
+
+    const tx = await transactionsService.updateStatus(
+      req.params.id,
+      user.organizationId,
+      status,
+      user.id
     );
 
     if (!tx) {
@@ -159,65 +187,17 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
 
     await auditLogsService.create({
       userId: user.id,
-      action: "deleted",
+      action: status === "approved" ? "approved" : "rejected",
       entityType: "transaction",
       entityId: tx.id,
-      details: `Deleted transaction ${tx.displayId}`,
+      details: `${status === "approved" ? "Approved" : "Rejected"} transaction ${tx.displayId}`,
       organizationId: user.organizationId,
     });
 
-    res.json({ message: "Transaction deleted" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete transaction" });
-  }
-});
-
-// PATCH /api/transactions/:id/status
-router.patch(
-  "/:id/status",
-  requireRole("admin"),
-  async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { status } = req.body as {
-        status: "approved" | "rejected";
-      };
-
-      if (!["approved", "rejected"].includes(status)) {
-        res
-          .status(400)
-          .json({ error: "Status must be 'approved' or 'rejected'" });
-        return;
-      }
-
-      const tx = await transactionsService.updateStatus(
-        req.params.id as string,
-        user.organizationId,
-        status,
-        user.id
-      );
-
-      if (!tx) {
-        res.status(404).json({ error: "Transaction not found" });
-        return;
-      }
-
-      await auditLogsService.create({
-        userId: user.id,
-        action: status === "approved" ? "approved" : "rejected",
-        entityType: "transaction",
-        entityId: tx.id,
-        details: `${status === "approved" ? "Approved" : "Rejected"} transaction ${tx.displayId}`,
-        organizationId: user.organizationId,
-      });
-
-      res.json(tx);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to update transaction status" });
-    }
+    res.json(tx);
   }
 );
+
+export default router;
 
 export default router;

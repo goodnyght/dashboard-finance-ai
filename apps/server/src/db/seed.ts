@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { db } from "./index.js";
 import {
+  user,
   organization,
   category,
   department,
@@ -28,6 +29,24 @@ async function seed() {
     .returning();
 
   console.log(`  ✓ Organization: ${org.name} (${org.id})\n`);
+
+  // ── 1a. Test User ──
+  console.log("  Creating test user...");
+  // Use as any for user table because it's a reserved word in some contexts/drizzle versions
+  // and we want to ensure it works correctly with the definition in schema.ts
+  const [testUser] = await db
+    .insert(user)
+    .values({
+      id: "auth_user_dev_001",
+      name: "Admin User",
+      email: "admin@example.com",
+      emailVerified: true,
+      role: "admin",
+      organizationId: org.id,
+    })
+    .onConflictDoNothing()
+    .returning();
+  console.log(`  ✓ Test user: admin@example.com\n`);
 
   // ── 2. Categories ──
   console.log("  Creating categories...");
@@ -200,6 +219,7 @@ async function seed() {
         organizationId: org.id,
       }))
     )
+    .onConflictDoNothing()
     .returning();
 
   console.log(`  ✓ ${transactions.length} transactions created\n`);
@@ -209,27 +229,27 @@ async function seed() {
   const budgetData = [
     {
       departmentId: deptMap.get("Engineering")!,
-      label: "Engineering Q1",
+      label: "Engineering March 2026",
       budgetAmount: 120000000,
-      period: "Q1-2026",
+      period: "2026-03",
     },
     {
       departmentId: deptMap.get("Marketing")!,
-      label: "Marketing Q1",
+      label: "Marketing March 2026",
       budgetAmount: 50000000,
-      period: "Q1-2026",
+      period: "2026-03",
     },
     {
       departmentId: deptMap.get("Operations")!,
-      label: "Operations Q1",
+      label: "Operations March 2026",
       budgetAmount: 90000000,
-      period: "Q1-2026",
+      period: "2026-03",
     },
     {
       departmentId: deptMap.get("HR & Legal")!,
-      label: "HR & Legal Q1",
+      label: "HR & Legal March 2026",
       budgetAmount: 20000000,
-      period: "Q1-2026",
+      period: "2026-03",
     },
   ];
 
